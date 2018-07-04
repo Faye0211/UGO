@@ -1,0 +1,101 @@
+<template>
+  <view class="tab-box">
+    <!-- 顶部区域 -->
+    <view class="tab-bar">
+      <view @tap="selectItem(0)" class="item {{selectIndex==0?'active':''}}">全部</view>
+      <view @tap="selectItem(1)" class="item {{selectIndex==1?'active':''}}">待付款</view>
+      <view @tap="selectItem(2)" class="item {{selectIndex==2?'active':''}}">已付款</view>
+      <view @tap="selectItem(3)" class="item {{selectIndex==3?'active':''}}">退款/退货</view>
+    </view>
+    <!-- 内容区域 -->
+    <view class="tab-content">
+      <view hidden="{{selectIndex!=0}}" class="item">1</view>
+      <view hidden="{{selectIndex!=1}}" class="item">2</view>
+      <view hidden="{{selectIndex!=2}}" class="item">3</view>
+      <view hidden="{{selectIndex!=3}}" class="item">4</view>
+    </view>
+  </view>
+</template>
+
+<script>
+  import wepy from 'wepy'
+  var method = require("../utils/method.js");
+
+  export default class Order extends wepy.page {
+    config = {
+      navigationBarTitleText: "订单",
+    };
+
+    data = {
+      selectIndex:0,
+      // 订单数据
+      orderList:[]
+    };
+
+    components = {};
+
+    methods = {
+      selectItem(index){
+        console.log(index);
+        this.selectIndex = index;
+      }
+    };
+
+    events = {};
+
+    watch = {};
+
+    computed = {};
+
+    onLoad() {
+      // 获取token
+      var token = wx.getStorageSync('token');
+      // 获取订单数据
+      method.request({
+        url:'api/public/v1/my/orders/all?type=2',
+        header:{
+          Authorization:token
+        },
+        success:res=>{
+          console.log(res);
+          this.orderList = res.data.message.orders;
+          this.$apply();
+        }
+      })
+    };
+
+    onShow() { };
+  }
+</script>
+
+<style lang='less'>
+page{
+  background-color: #f4f4f4;
+}
+  .tab-box{
+    .tab-bar{
+      height: 100rpx;
+      background-color: white;
+      display: flex;
+      .item{
+        flex:1;//
+        text-align: center;
+        line-height: 100rpx;
+        font-size:32rpx;
+        &.active{
+          color:#eb4450;
+          position: relative;
+          &::after{
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 12rpx;
+            background-color: #eb4450;
+            bottom: 0;
+            left: 0;
+          }
+        }
+      }
+    }
+  }
+</style>

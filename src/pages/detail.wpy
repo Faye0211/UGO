@@ -1,0 +1,332 @@
+<!--  -->
+<template>
+  <!-- 轮播图区域 -->
+  <swiper @tap="previewImgs" indicator-dots="{{indicatorDots}}" autoplay="{{autoplay}}" interval="{{interval}}" duration="{{duration}}">
+    <block wx:for="{{goodsDetail.pics}}">
+      <swiper-item>
+        <image src="{{item.pics_mid}}" class="slide-image" width="355" height="150" />
+      </swiper-item>
+    </block>
+  </swiper>
+  <!-- 商品信息  -->
+  <view class="good_info">
+    <view class="price">¥{{goodsDetail.goods_price}}</view>
+    <view class="title">
+      <view class="left">{{goodsDetail.goods_name}}</view>
+      <view class="right">
+        <view class="iconfont icon-shoucang"></view>
+        <view>收藏</view>
+      </view>
+    </view>
+    <view class="express">
+      快递: <text>免运费</text>
+    </view>
+  </view>
+  <!-- tab区域 -->
+  <view class="tab">
+    <view class="tab-bar">
+      <view @tap="selectTap({{0}})" class="item {{selectTabIndex==0?'active':''}}">图文介绍</view>
+      <view @tap="selectTap({{1}})" class="item {{selectTabIndex==1?'active':''}}">规则参数</view>
+    </view>
+    <view class="tab-content">
+      <view class="item" hidden="{{selectTabIndex!=0}}">
+        <!-- // 引入模板 -->
+        <import src="/wxParse/wxParse.wxml" />
+         <!-- //这里data中article为bindName -->
+        <template is="wxParse" data="{{wxParseData:article.nodes}}" />
+      </view>
+      <view class="item" hidden="{{selectTabIndex!=1}}">
+        <block wx:for="{{goodsDetail.attrs}}" >
+          <view class="row">
+            <view class="col">{{item.attr_name}}</view>
+            <view class="col">{{item.attr_value}}</view>
+          </view>
+        </block>
+      </view>
+    </view>
+  </view>
+  <!-- 底部操纵区域 -->
+  <view class="control">
+    <view class="service">
+      <view class="iconfont icon-kefu"></view>
+      联系客服
+    </view>
+    <view @tap="toCart" class="cart">
+      <view class="iconfont icon-gouwuche"></view>
+      购物车
+    </view>
+    <view @tap="addCart" class="addCart">
+      加入购物车
+    </view>
+    <view class="buy">
+      立即购买
+    </view>
+  </view>
+</template>
+
+<script>
+import wepy from 'wepy'
+// 引入自己封装的函数
+var method = require('../utils/method.js')
+// 引入 wxParse模块
+var WxParse = require('../wxParse/wxParse.js')
+
+export default class Detail extends wepy.page {
+  config = {
+    navigationBarTitleText: '商品详情'
+  }
+  data = {
+    // 商品id
+    goods_id: '',
+    // 商品详细数据
+    goodsDetail: undefined,
+    // 图片地址
+    previewImgUrls: [],
+    // 选中的tab索引
+    selectTabIndex: 0,
+    // 轮播图设置
+    indicatorDots: true,
+    autoplay: true,
+    interval: 5000,
+    duration: 1000
+  }
+  components = {}
+  methods = {
+    // 点击查看预览图片
+    previewImgs() {
+      wx.previewImage({
+        urls: this.previewImgUrls
+      })
+    },
+    // 点击tab
+    selectTap(index) {
+      this.selectTabIndex = index
+    },
+    // 去购物车
+    toCart() {
+      wx.switchTab({
+        url: '/pages/cart'
+      })
+    },
+    // 加入购物车
+    addCart() {
+      // 加入缓存
+      // 定义一个购物车的商品数据(方便后续的操作)
+      var cartData = undefined
+      // 缓存中不存在购物车数据 创建一个新的 增加
+      wx.getStorage({
+        key: 'cart',
+        success: res => {
+          console.log(res)
+          // 获取数据
+          cartData = res.data
+          // 判断 id是否存在
+          if (cartData[this.goods_id]) {
+            // 已经添加到购物车了
+            // 累加数量
+            cartData[this.goods_id] += 1
+          } else {
+            // 不存在
+            cartData[this.goods_id] = 1
+          }
+          // 保存到缓存中
+          wx.setStorage({
+            key: 'cart',
+            data: cartData
+          })
+        },
+        fail: res => {
+          console.log(res)
+          // 保存数据
+          cartData = {}
+          // 直接添加即可
+          cartData[this.goods_id] = 1
+          // 保存到缓存中
+          wx.setStorage({
+            key: 'cart',
+            data: cartData
+          })
+        }
+      })
+      // 缓存中存在购物车数据
+      // 缓存中存在这个商品 数量累加
+      // 缓存中不存在这个商品 直接设置为1
+      // 提示用户
+      wx.showToast({
+        title:'添加中,别急..' ,
+        icon: 'loading',
+        duration: 500,
+        mask: false,
+      });
+    }
+  }
+  events = {}
+  watch = {}
+  computed = {}
+  onLoad(options) {
+    console.log(options)
+    // 接收数据 goods_id
+    this.goods_id = options.goods_id
+    // 根据id 获取详细信息
+    method.request({
+      url: 'api/public/v1/goods/detail',
+      data: {
+        goods_id: this.goods_id
+      },
+      success: res => {
+        console.log(res)
+        // 保存数据
+        this.goodsDetail = res.data.message
+        // 保存图片地址
+        this.goodsDetail.pics.forEach(res => {
+          // console.log(res);
+          this.previewImgUrls.push(res.pics_mid)
+        })
+        // 检查数据
+        this.$apply()
+        // 数据绑定 解析
+        var goods_introduce = this.goodsDetail.goods_introduce
+        /**
+         * WxParse.wxParse(bindName , type, data, target,imagePadding)
+         * 1.bindName绑定的数据名(必填)
+         * 2.type可以为html或者md(必填)
+         * 3.data为传入的具体数据(必填)
+         * 4.target为Page对象,一般为this(必填)
+         * 5.imagePadding为当图片自适应是左右的单一padding(默认为0,可选)
+         */
+        // var that = this
+        WxParse.wxParse('article', 'html', goods_introduce, this)
+      }
+    })
+  }
+  onShow() {}
+}
+</script>
+
+<style lang='less'>
+// 引入插件样式
+@import '../wxParse/wxParse.wxss';
+// 给了固定定位 使用padding 把盒子 定开
+page {
+  padding-bottom: 100rpx;
+}
+// 轮播图高度
+swiper {
+  height: 720rpx;
+  image {
+    height: 100%;
+    display: block;
+    margin: 0 auto;
+  }
+}
+// 商品简略信息样式
+.good_info {
+  padding-left: 16rpx;
+  .price {
+    font-size: 32rpx;
+    color: #eb4450;
+  }
+  .title {
+    margin-top: 43rpx;
+    display: flex;
+    .left {
+      flex: 1;
+    }
+    .right {
+      width: 142rpx;
+      text-align: center;
+      color: gary;
+      font-size: 26rpx;
+    }
+  }
+  .express {
+    color: gary;
+    font-size: 28rpx;
+  }
+}
+// tab栏
+.tab {
+  .tab-bar {
+    height: 100rpx;
+    display: flex;
+    .item {
+      text-align: center;
+      line-height: 100rpx;
+      flex: 1;
+      font-size: 24rpx;
+      transition: 1s;
+      &.active {
+        color: #eb4450;
+        box-shadow: inset 0 -20rpx 0 #eb4450, inset 0 -30rpx 0 yellowgreen;
+      }
+    }
+  }
+  .tab-content {
+    .item {
+      padding: 10rpx;
+      .row {
+        display: flex;
+        height: 80rpx;
+        background-color: deepskyblue;
+        width: 100%;
+        .col {
+          text-align: center;
+          flex: 1;
+          font-size: 24rpx;
+          line-height: 80rpx;
+          border: 1rpx solid lightgray;
+        }
+        .col:last-child {
+          border-left: none;
+        }
+      }
+      // 除了最后一个row 中间的col 底部边框都没有
+      .row:not(:last-child) {
+        .col {
+          border-bottom: none;
+        }
+      }
+    }
+  }
+}
+// 图片撑
+.wxParse-img {
+  width: 100%;
+  display: block;
+}
+// 控制区域
+.control {
+  display: flex;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100rpx;
+  background-color: #fff;
+  > view {
+    flex: 1;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .service {
+    font-size: 24rpx;
+    color: gray;
+  }
+  .cart {
+    font-size: 24rpx;
+    color: gray;
+  }
+  .addCart {
+    color: white;
+    flex: 2;
+    background-color: #ffb400;
+  }
+  .buy {
+    color: white;
+    flex: 2;
+    background-color: #ff2d4a;
+  }
+}
+</style>

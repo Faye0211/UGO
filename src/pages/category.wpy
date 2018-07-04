@@ -1,0 +1,157 @@
+<!--  -->
+<template>
+  <!-- 引入的搜索组件 -->
+  <searchBar></searchBar>
+  <!-- 左右两个滚动区域 -->
+  <view class="scroll-box">
+    <scroll-view class="left" scroll-y scroll-with-animation @scroll="">
+      <block wx:for="{{categoryList}}" >
+        <view @tap="selectItem({{index}})" class="item {{index==selectIndex?'active':''}}" data-id="{{item.cat_id}}">{{item.cat_name}}</view>
+      </block>
+    </scroll-view>
+    <!-- 右边区域 -->
+    <scroll-view class="right" scroll-y scroll-with-animation @scroll="">
+      <block wx:for="{{categoryList[selectIndex].children}}" >
+        <image class="title-image" src="/image/titleImage.png"></image>
+        <view class="title">/{{item.cat_name}}/</view>
+        <view class="children-box">
+          <block wx:for="{{item.children}}" wx:for-item="itemSon">
+            <navigator url="" open-type="navigate" hover-class="none">
+              <image src="https://www.zhengzhicheng.cn/{{itemSon.cat_icon}}"></image>
+              <text>{{itemSon.cat_name}}</text>
+            </navigator>
+          </block>
+        </view>
+      </block>
+    </scroll-view>
+  </view>
+
+</template>
+
+<script>
+import wepy from 'wepy'
+
+// 引入组件
+import searchBar from '../comments/searchBar'
+// 引入封装的工具函数
+var method = require('../utils/method.js')
+
+export default class Category extends wepy.page {
+  config = {
+    navigationBarTitleText: '分类'
+  }
+
+  data = {
+    // 分类数据
+    categoryList: '',
+    // 选中大分类
+    selectIndex: 0
+  }
+
+  components = {
+    searchBar: searchBar
+  }
+
+  methods = {
+    // 增加选中item
+    selectItem(index) {
+      // console.log(index);
+      // 修改选中的索引即可
+      this.selectIndex = index
+    }
+  }
+
+  events = {}
+
+  watch = {}
+
+  computed = {}
+
+  onLoad() {
+    // 获取数据
+    method.request({
+      url: 'api/public/v1/categories',
+      success: backData => {
+        console.log(backData)
+        this.categoryList = backData.data.message
+        // 异步需要人为触发
+        this.$apply()
+      }
+    })
+  }
+
+  onShow() {}
+}
+</script>
+
+<style lang='less'>
+page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.scroll-box {
+  flex: 1;
+  display: flex;
+  scroll-view {
+    height: 100%;
+    &.left {
+      width: 200rpx;
+      .item {
+        height: 100rpx;
+        background-color: #f4f4f4;
+        text-align: center;
+        line-height: 100rpx;
+        font-size: 24rpx;
+        border-bottom: 1rpx solid #eeeeee;
+        &.active {
+          color: #eb4450;
+          background-color: white;
+          font-weight: 700;
+          position: relative;
+          &::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 20rpx;
+            height: 60rpx;
+            width: 10rpx;
+            background-color: #eb4450;
+          }
+        }
+      }
+    }
+    &.right {
+      flex: 1;
+      .title {
+        text-align: center;
+        font-size: 24rpx;
+        padding: 15rpx 0;
+      }
+      .title-image {
+        width: 520rpx;
+        height: 178rpx;
+      }
+      .children-box {
+        display: flex;
+        flex-wrap: wrap;
+        navigator {
+          width: 33.3333%;
+          padding: 20rpx 0;
+          image {
+            width: 90rpx;
+            height: 60rpx;
+            margin: 0 auto;
+            display: block;
+          }
+          text {
+            display: block;
+            text-align: center;
+            font-size: 22rpx;
+          }
+        }
+      }
+    }
+  }
+}
+</style>

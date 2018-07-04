@@ -1,0 +1,68 @@
+<!--  -->
+<template>
+    <!-- 顶部搜索栏 -->
+  <view class="search-bar">
+    <icon type="search" size="24">
+    </icon>
+    <input @tap="toSearch" type="text" placeholder="搜索">
+  </view>
+</template>
+
+<script>
+  import wepy from 'wepy'
+
+  export default class SearchBar extends wepy.component {
+    props = {};
+
+    data = {};
+
+    components = {};
+
+    methods = {
+      // toSearch:function(){}
+      toSearch(){
+        console.log('去搜索页');
+        wx.navigateTo({
+          url: '/pages/search'
+        });
+      }
+    };
+
+    events = {};
+
+    watch = {};
+
+    computed = {};
+
+    onLoad() { };
+
+    onShow() { };
+  }
+</script>
+
+<style lang='less'>
+.search-bar {
+  height: 100rpx;
+  background-color: #ff2d4a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20rpx 16rpx;
+  box-sizing: border-box;
+  position: relative; // 放大镜图标
+  icon {
+    position: absolute;
+    z-index: 998;
+    left: 50%;
+    transform: translateX(-150%);
+  }
+  input {
+    width: 100%;
+    height: 100%;
+    background-color: white;
+    font-size: 24rpx;
+    text-align: center;
+    border-radius: 10rpx;
+  }
+}
+</style>

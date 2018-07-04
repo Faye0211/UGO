@@ -1,0 +1,591 @@
+<!--  -->
+<template>
+  <view class="empty-cart" hidden="{{isFull}}">
+    <view class="iconfont icon-daishouhuo"></view>
+    你的购物车空空如也^_^!!
+  </view>
+  <view class="full-cart">
+    <!-- 地址 -->
+    <view @tap="chooseAddress" class="address">
+      <view class="user">
+        <view class="left">
+          收货人:{{address.userName}}
+        </view>
+        <view class="right">
+          {{address.telNumber}}
+          <text class="iconfont icon-jiantouyou"></text>
+        </view>
+      </view>
+      <view class="place">
+        收货地址:{{address.provinceName}}{{address.cityName}}{{address.countyName}}{{address.detailInfo}}
+      </view>
+      <!-- 底部的线段 -->
+      <image src="/image/border.PNG"></image>
+    </view>
+    <!-- 添加到购物车的商品列表 -->
+    <view class="goods-list">
+      <view class="title">
+        <text class="iconfont icon-dianpu"></text> 优购生活馆
+      </view>
+      <!-- 加入购物车的商品 -->
+      <view class="goods-box">
+        <block wx:for="{{cartDetails}}">
+          <view class="item">
+            <radio @tap="change({{index}})" checked="{{item.isChecked}}" color="#eb4450"/>
+            <image src="{{item.goods_small_logo}}"></image>
+            <view class="info-box">
+              <view class="top">{{item.goods_name}}</view>
+              <view class="bottom">
+                <view class="price">¥{{item.goods_price}}</view>
+                <view class="control">
+                  <view @tap="sub({{item.goods_id}})" class="sub">-</view>
+                  <text>{{cart[item.goods_id]}}</text>
+                  <view @tap="add({{item.goods_id}})" class="add">+</view>
+                </view>
+              </view>
+            </view>
+          </view>
+        </block>
+      </view>
+    </view>
+  </view>
+  <!-- 底部的 操纵栏 -->
+  <view class="tools">
+    <view><radio checked="{{isCheckedAll}}" @tap="checkAll" color="#eb4450"></radio>全选</view>
+    <view class="price-box">
+      <view class="price">总金额{{totalPrice}}</view>
+      <view class="express-price">包含运费</view>
+    </view>
+    <button @tap="payMoney">结算({{checkedNum}})</button>
+  </view>
+    <toast id="toast"></toast>
+</template>
+
+<script>
+import wepy from 'wepy'
+import Toast from 'wepy-com-toast'
+// 引入封装的函数
+var method = require('../utils/method.js')
+export default class Cart extends wepy.page {
+  config = {
+    navigationBarTitleText: '购物车'
+  }
+  data = {
+    isFull: false,
+    // 地址信息
+    address: undefined,
+    // 购物车信息 购买的个数
+    cart: undefined,
+    // 详细信息
+    cartDetails: [],
+    // 是否勾选了 全选
+    isCheckedAll: true,
+    // 记录总金额
+    totalPrice: 0
+  }
+  components = {
+    toast: Toast
+  }
+  methods = {
+    // 选择地址
+    chooseAddress() {
+      wx.chooseAddress({
+        success: res => {
+          console.log(res)
+          this.address = res
+          this.$apply()
+          // 保存到缓存中 方便后续使用
+          wx.setStorage({
+            key: 'address',
+            data: res
+          })
+        }
+      })
+    },
+    // 递减价格
+    sub(goods_id) {
+      // 根据id 获取个数
+      // 如果个数为1
+      if (this.cart[goods_id] == 1) {
+        // 提示用户
+        wx.showModal({
+          title: '提示',
+          content: '你想清楚了?',
+          showCancel: true,
+          cancelText: '取消',
+          cancelColor: '#000000',
+          confirmText: '确定',
+          confirmColor: '#3CC51F',
+          success: res => {
+            console.log(res)
+            if (res.confirm == true) {
+              // 想清楚了
+              // 个数递减
+              this.cart[goods_id]--
+              if (this.cart[goods_id] == 0) {
+                // 删除数据中的这个值
+                // 删除cart中的这个数据 如何删除对象中的 某一个键值对 delete
+                delete this.cart[goods_id]
+                // 同步修改 缓存中的数据
+                wx.setStorage({
+                  key: 'cart',
+                  data: this.cart
+                })
+
+                // 删除 商品id 对应的那个数据
+                for (var i = 0; i < this.cartDetails.length; i++) {
+                  if (goods_id == this.cartDetails[i].goods_id) {
+                    // 这个已经没有了
+                    // 删除数组中的这个数据
+                    this.cartDetails.splice(i, 1)
+                  }
+                }
+              }
+
+              // 如果一条数据都没有了 直接显示 空空如也
+              if (this.cartDetails.length == 0) {
+                this.isFull = false
+                // 清空购物车的数据
+                wx.removeStorage({
+                  key: 'cart'
+                })
+              }
+              // 检查脏数据
+              this.$apply()
+            } else {
+              // 没想清楚
+            }
+          }
+        })
+        return
+      } else {
+        // 个数递减
+        this.cart[goods_id]--
+      }
+    },
+    // 累加
+    add(goods_id) {
+      // 根据id 获取个数
+      // 个数累加
+      this.cart[goods_id]++
+    },
+    // 选中 取消选中
+    change(index) {
+      console.log(index)
+      this.cartDetails[index].isChecked = !this.cartDetails[index].isChecked
+      // 选中个数
+      this.cartDetails.forEach(ele => {
+        // 只要有任何一个没有选中
+        if (ele.isChecked == false) {
+          // 有没有选中的 取消全选的勾选
+          this.isCheckedAll = false
+          return
+        }
+      })
+      // // 判断总个数 跟选中的个数
+      // this.cartDetails.length;
+    },
+    // 全选
+    checkAll() {
+      // 修改所有的选中状态
+      // 自己取反
+      this.isCheckedAll = !this.isCheckedAll
+      // 设置其他的为true即可
+      this.cartDetails.forEach(ele => {
+        ele.isChecked = this.isCheckedAll
+      })
+    },
+    // 结算逻辑
+    payMoney() {
+      // 1.判断是否选择商品
+      var checkedNum = 0
+      this.cartDetails.forEach(ele => {
+        if (ele.isChecked == true) {
+          checkedNum++
+        }
+      })
+      if (checkedNum == 0) {
+        wx.showToast({
+          title: '你买啥?',
+          icon: 'none',
+          duration: 500,
+          mask: false
+        })
+        return
+      }
+
+      // 2.判断是否选择地址
+      if (this.address == undefined) {
+        wx.showToast({
+          title: '送到哪?',
+          icon: 'none',
+          duration: 500,
+          mask: false
+        })
+        return
+      }
+
+      // 3.弹出自己的支付窗口 让他转钱
+      let promise = this.$invoke('toast', 'show', {
+        title: '付钱吧!',
+        img:
+          '/image/pay.png'
+      })
+
+      promise.then(d => {
+        console.log('toast done')
+      })
+
+      // 3.判断用户是否登陆
+      // wx.getUserInfo 只能够获取到用户非私密的信息 如果不登陆的话
+      // 判断登陆状态
+      // 判断是否保存了token
+      wx.getStorage({
+        key: 'token',
+        success: res => {
+          // 登陆了
+          // 继续执行
+          // 创建购物订单 才能够继续购买
+          // 同步获取token
+          var token = wx.getStorageSync('token')
+
+          // 计算总金额
+          // 获取地址
+          // 数组 每个值中 需要保存 商品id 商品数量 商品价格
+          // 自己生成一个 商品数组
+          var temArr = []
+          for (var i = 0; i < this.cartDetails.length; i++) {
+            if(this.cartDetails[i].isChecked==true){
+            // 生成一个临时对象
+            var obj = {}
+            obj.goods_id = this.cartDetails[i].goods_id
+            obj.goods_price = this.cartDetails[i].goods_price
+            // 获取数量
+            obj.goods_number = this.cart[this.cartDetails[i].goods_id]
+            // 加到临时数组中
+            temArr.push(obj)
+            }
+          }
+
+          // 调用接口创建订单
+          method.request({
+            url: 'api/public/v1/my/orders/create',
+            data: {
+              order_price: this.totalPrice,
+              consignee_addr: `${this.address.cityName}${
+                this.address.countyName
+              }${this.address.detailInfo}`,
+              goods: temArr
+            },
+            header: {
+              Authorization: token
+            },
+            method: 'post',
+            success: res => {
+              console.log(res)
+              // 订单创建成功
+              // 生成预支付交易单
+              method.request({
+                url: 'api/public/v1/my/orders/req_unifiedorder',
+                data: {
+                  order_number: res.data.message.order_number
+                },
+                header: {
+                  Authorization: token
+                },
+                method: 'post',
+                success: res => {
+                  console.log(res)
+                  // 预支付订单创建成功之后
+                  // 发起微信支付
+                  wx.requestPayment({
+                    timeStamp: res.data.message.wxorder.timeStamp,
+                    nonceStr: res.data.message.wxorder.nonceStr,
+                    package: res.data.message.wxorder.package,
+                    signType: res.data.message.wxorder.signType,
+                    paySign: res.data.message.wxorder.paySign,
+                    success: res => {
+                      console.log(res)
+                    },
+                    fail: () => {}
+                  })
+                }
+              })
+            }
+          })
+        },
+        fail: res => {
+          // 没有登陆 提示登陆
+          wx.showModal({
+            title: '提示',
+            content: '要登录才能买哦!',
+            showCancel: true,
+            cancelText: '残忍拒绝',
+            cancelColor: '#000000',
+            confirmText: '去登陆',
+            confirmColor: '#3CC51F',
+            success: res => {
+              if (res.confirm) {
+                wx.switchTab({
+                  url: '/pages/me'
+                })
+              }
+            }
+          })
+        }
+      })
+    }
+  }
+  events = {}
+  watch = {}
+  // 计算属性 写的是函数 需要返回的值 直接return即可
+  computed = {
+    totalPrice() {
+      // return 998;
+      // 找到每个商品的单价 以及每个商品的数目
+      var totalPrice = 0
+      for (var i = 0; i < this.cartDetails.length; i++) {
+        if (this.cartDetails[i].isChecked == true) {
+          // 获取价格
+          var price = this.cartDetails[i].goods_price
+          // 获取个数 根据id获取数目
+          var count = this.cart[this.cartDetails[i].goods_id]
+          // 累加价格
+          totalPrice += price * count
+        }
+      }
+      // 保存一个变量
+      this.totalPrice = totalPrice
+      return totalPrice
+    },
+    // 计算被选中的个数
+    checkedNum() {
+      // 遍历
+      var num = 0
+      // 找个数
+      this.cartDetails.forEach(ele => {
+        // 如果为true ++
+        if (ele.isChecked == true) {
+          num++
+        }
+      })
+      // 直接返回即可
+      return num
+    }
+  }
+  onLoad() {
+    console.log('cart_onload')
+    // tab的页面 只要显示出来之后 onload不会再次出发
+    // 获取购物车信息
+  }
+  onShow() {
+    // 每次打开都会触发
+    wx.getStorage({
+      key: 'cart',
+      success: res => {
+        // 有值
+        this.isFull = true
+        // 获取购物车的商品信息数据
+        this.cart = res.data
+        this.$apply()
+        // 调用 获取购物车信息接口
+        // 生成 id,id 这样的一个格式
+        var goods_ids = ''
+        for (const key in this.cart) {
+          goods_ids += key
+          goods_ids += ','
+        }
+        // 去掉末尾的,
+        goods_ids = goods_ids.slice(0, -1)
+        method.request({
+          url: 'api/public/v1/goods/goodslist',
+          data: {
+            goods_ids: goods_ids
+          },
+          success: res => {
+            console.log(res)
+
+            // 每一个中增加一个是否选中的状态
+            for (var i = 0; i < res.data.message.length; i++) {
+              res.data.message[i].isChecked = true
+            }
+            // 保存到data中
+            this.cartDetails = res.data.message
+            this.$apply()
+          }
+        })
+      },
+      fail: res => {
+        this.isFull = false
+        this.$apply()
+      }
+    })
+    // 去缓存中获取 地址信息 如果有 直接获取 赋值到变量中
+    wx.getStorage({
+      key: 'address',
+      success: res => {
+        console.log(res)
+        // 有值
+        this.address = res.data
+        this.$apply()
+      }
+    })
+  }
+}
+</script>
+
+<style lang='less'>
+page {
+  height: 100%;
+}
+.empty-cart {
+  height: 100%;
+  box-sizing: border-box;
+  background-color: #f4f4f4;
+  text-align: center;
+  padding-top: 100rpx;
+  font-size: 30rpx;
+  .iconfont {
+    font-size: 200rpx;
+    color: #eb4450;
+  }
+}
+// 购物车有东西时候的布局样式
+.full-cart {
+  background-color: deeppink;
+  .address {
+    height: 208rpx;
+    padding: 0 18rpx;
+    position: relative;
+    background-color: white;
+    > view {
+      height: 80rpx;
+      line-height: 80rpx;
+      font-size: 31rpx;
+    }
+    .user {
+      display: flex;
+      justify-content: space-between;
+      .left {
+      }
+      .right {
+      }
+    }
+    .place {
+      height: 120rpx;
+      line-height: 120rpx;
+    }
+    image {
+      width: 100%;
+      height: 14rpx;
+      left: 0;
+      bottom: 0;
+      position: absolute;
+    }
+  } // 商品列表
+  .goods-list {
+    margin-top: 20rpx;
+    background-color: white;
+    .title {
+      padding-left: 33rpx;
+      height: 87rpx;
+      line-height: 87rpx;
+      font-size: 28rpx;
+      border-bottom: 1px solid #eee;
+      text {
+        color: gray;
+      }
+    }
+  }
+}
+// 商品列表部分的布局
+.item {
+  display: flex;
+  height: 205rpx;
+  align-items: center;
+  padding: 20rpx 0;
+  box-sizing: border-box;
+  radio {
+    // background-color: #eb4450;
+    transform: scale(0.8);
+  }
+  image {
+    height: 160rpx;
+    width: 160rpx;
+  }
+  .info-box {
+    flex: 1;
+    .top {
+      font-size: 30rpx;
+    }
+    .bottom {
+      display: flex;
+      justify-content: space-between;
+      .price {
+        color: #eb4450;
+        font-size: 32rpx;
+      }
+      .control {
+        display: flex;
+        view {
+          border: 5rpx solid #666666;
+          height: 52rpx;
+          width: 52rpx;
+          box-sizing: border-box;
+          text-align: center;
+          line-height: 52rpx;
+        }
+        .sub {
+        }
+        text {
+          height: 52rpx;
+          width: 52rpx;
+          text-align: center;
+          line-height: 52rpx;
+          font-size: 20rpx;
+        }
+        .add {
+        }
+      }
+    }
+  }
+}
+
+// 购物车底部的布局
+.tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 20rpx;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 97rpx;
+  radio {
+  }
+  text {
+    font-size: 26rpx;
+  }
+  view.price-box {
+    display: flex;
+    flex-direction: column;
+    .price {
+      color: #eb4450;
+    }
+    .express-price {
+      font-size: 22rpx;
+      color: lightgray;
+    }
+  }
+  button {
+    color: white;
+    width: 250rpx;
+    background-color: #eb4450;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+  }
+}
+</style>

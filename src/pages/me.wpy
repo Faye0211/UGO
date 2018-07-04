@@ -1,0 +1,311 @@
+<!--  -->
+<template>
+  <view class="top">
+    <view class="icon-box">
+      <text class="iconfont icon-xiaoxi"></text>
+       <button class="login" bindtap="doLogin" open-type="getUserInfo"></button>
+      <image @tap="login" src="{{userInfo?userInfo.avatarUrl:'/image/icon.png'}}"></image>
+      <text class="iconfont icon-shezhi"></text>
+    </view>
+    <text>{{userInfo?userInfo.nickName:'加油登陆/注册'}}</text>
+  </view>
+  <view class="bottom">
+    <view class="info-box">
+      <view class="item">
+        <text>0</text>
+        <text>收藏的店铺</text>
+      </view>
+      <view class="item">
+        <text>0</text>
+        <text>收藏的店铺</text>
+      </view>
+      <view class="item">
+        <text>0</text>
+        <text>收藏的店铺</text>
+      </view>
+      <view class="item">
+        <text>0</text>
+        <text>收藏的店铺</text>
+      </view>
+    </view>
+    <view class="order-list">
+      <view class="title">我的订单</view>
+      <view @tap="toOrder" class="list-box">
+        <view class="item">
+          <text class="iconfont icon-daifukuan"></text>
+          <text>待付款</text>
+        </view>
+        <view class="item">
+          <text class="iconfont icon-daishouhuo"></text>
+          <text>待收货</text>
+        </view>
+        <view class="item">
+          <text class="iconfont icon-tuikuan"></text>
+          <text>退款/退货</text>
+        </view>
+        <view class="item">
+          <text class="iconfont icon-dingdan"></text>
+          <text>全部订单</text>
+        </view>
+      </view>
+    </view>
+    <view @tap="getAddress" class="option">
+      <text>收货地址管理</text>
+      <text class="iconfont icon-jiantouyou"></text>
+    </view>
+    <view class="options">
+      <view class="option">
+        <text>联系客服</text>
+        <text>18888888888</text>
+      </view>
+      <view class="option">
+        <text>意见反馈</text>
+        <text class="iconfont icon-jiantouyou"></text>
+      </view>
+      <view class="option">
+        <text>关于我们</text>
+        <text class="iconfont icon-eye"></text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script>
+import wepy from 'wepy'
+
+// 引入自己封装的函数
+var method = require('../utils/method.js');
+
+export default class Me extends wepy.page {
+  config = {
+    navigationBarTitleText: '我的'
+  }
+  data = {
+    userInfo: undefined
+  }
+  components = {}
+  methods = {
+    // 点击登录
+    /*
+        login(){
+          // 直接调用这个api 如果用户 最开始拒绝了 权限 就无效了
+          // 如果希望再次弹窗提示用户 需要使用 <button open-type="getUserInfo"></button>
+          // 使用app 或者是公众号时 直接拒绝 开始在乎自己的隐私
+          wx.getUserInfo({
+            withCredentials: 'false',
+            lang: 'zh_CN',
+            success: res => {
+              console.log(res);
+              this.userInfo = res.userInfo;
+              this.$apply();
+            }
+          });
+        },
+      */
+    // 点击登录 有授权提示
+    doLogin(event) {
+      // console.log(event);
+      // this.userInfo = event.detail.userInfo;
+       wx.login({
+        // 这一步的作用是获取 code
+        // 用户登录凭证（有效期五分钟）。开发者需要在开发者服务器后台调用 api，使用 code 换取 openid 和 session_key 等信息
+        // 这个用户的标记 获取code
+        success: loginRes => {
+          console.log('wx.login_success')
+          console.log(loginRes);
+          // 使用wx.getUserInfo获取用户的更为详细的信息
+          wx.getUserInfo({
+            withCredentials: 'false',
+            lang: 'zh_CN',
+            success: userRes => {
+              console.log('wx.getUserInfo_success')
+              console.log(userRes)
+              this.userInfo = userRes.userInfo;
+              this.$apply();
+              // 用户信息保存到 data中
+              // 把这些数据 发送给自己的服务器去验证
+              method.request({
+                url:'api/public/v1/users/wxlogin',
+                data:{
+                    code:loginRes.code,
+                    encryptedData:userRes.encryptedData,
+                    iv:userRes.iv,
+                    rawData:userRes.rawData,
+                    signature:userRes.signature
+                },
+                method:'post',
+                success:res=>{
+                  console.log('method.request_success');
+                  console.log(res);
+                  // 获取到token 说明登陆成功 为了方便后续使用 记录下来
+                  // 保存登陆状态
+                  wx.setStorage({
+                    key:'token',
+                    data:res.data.message.token
+                    // 发起支付的操作了
+                  })
+                }
+              })
+            }
+          });
+
+        }
+      });
+    },
+
+    // 获取地址信息
+    getAddress() {
+      // 会跳转到微信原生的地址获取页
+      // 选择了某个地址才会触发success
+      // 模拟器会有默认地址 手机上的操纵界面会更为详细一些
+      wx.chooseAddress({
+        success: res => {
+          console.log(res)
+          // 打印地址信息
+          wx.setStorage({
+            key: 'address',
+            data:res
+          });
+        }
+      })
+    },
+    // 去订单也
+    toOrder(){
+      wx.navigateTo({
+        url: '/pages/order'
+      });
+    }
+  }
+  events = {}
+  watch = {}
+  computed = {}
+  onLoad() {
+    // wx.getUserInfo({
+    //   withCredentials: 'false',
+    //   lang: 'zh_CN',
+    //   success: res => {
+    //     this.userInfo = res.userInfo;
+    //     this.$apply();
+    //   }
+    // });
+  }
+  onShow() {}
+}
+</script>
+
+<style lang='less'>
+.top {
+  height: 426rpx;
+  background-color: #ff2d4a;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  .icon-box {
+    position: relative;
+    width: 330rpx;
+    height: 145rpx;
+    image {
+      width: 145rpx;
+      height: 145rpx;
+      box-sizing: border-box;
+      border-radius: 50%;
+      border: 5rpx solid white;
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    .iconfont {
+      position: absolute;
+      transform: translateY(-50%);
+      top: 50%;
+    }
+    .icon-xiaoxi {
+      left: 0;
+    }
+    .icon-shezhi {
+      right: 0;
+    }
+    // 登录按钮
+    .login {
+      width: 145rpx;
+      height: 145rpx;
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      opacity: 0;
+      z-index: 998;
+    }
+  }
+  text {
+    color: white;
+    font-size: 26rpx;
+  }
+}
+.bottom {
+  padding: 0 16rpx;
+  background-color: skyblue;
+  .info-box {
+    height: 120rpx;
+    display: flex;
+    background-color: white;
+    transform: translateY(-26rpx);
+    .item {
+      flex: 1;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      padding-top: 10rpx;
+      box-sizing: border-box;
+      text {
+        font-size: 24rpx;
+        columns: #999999;
+        display: block;
+        text-align: center;
+      }
+    }
+  }
+  .order-list {
+    background-color: white;
+    .title {
+      height: 88rpx;
+      border-bottom: 1px solid #eeeeee;
+      font-size: 28rpx;
+    }
+    .list-box {
+      height: 166rpx;
+      display: flex;
+      .item {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-around;
+        align-items: center;
+        text {
+          font-size: 26rpx;
+          display: block;
+        }
+        text.iconfont {
+          color: #ff2d4a;
+          font-size: 50rpx;
+        }
+      }
+    }
+  } // 选项
+  .option {
+    margin: 20rpx 0;
+    height: 88rpx;
+    background-color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 32rpx;
+    font-size: 28rpx;
+  }
+  .options .option {
+    margin: 0;
+    border-bottom: 1px solid #eee;
+  }
+}
+</style>

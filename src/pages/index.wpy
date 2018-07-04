@@ -1,0 +1,227 @@
+<style lang="less">
+// 轮播图部分
+swiper {
+  height: 340rpx;
+  navigator {
+    display: block;
+    height: 100%;
+    image {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  }
+} // 导航区域
+.nav {
+  display: flex;
+  align-items: center;
+  padding: 24rpx 0 29rpx;
+  navigator {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    image {
+      width: 128rpx;
+      height: 128rpx;
+    }
+  }
+} // 楼层区域
+.items {
+  .item {
+    padding-top: 30rpx;
+    .title {
+      height: 60rpx;
+      width: 100%;
+    }
+    .product-box {
+      padding: 20rpx 16rpx;
+      height: 386rpx; // padding: 20rpx 16rpx 0;
+      navigator {
+        display: block;
+        box-sizing: border-box;
+        padding-right: 10rpx;
+        padding-bottom: 10rpx;
+        image {
+          // width: 100%;
+          height: 100%;
+        }
+      }
+      navigator:first-child {
+        height: 100%;
+      }
+      navigator:not(:first-child) {
+        height: 50%;
+      }
+      navigator:nth-child(2n + 3) {
+        padding-right: 0;
+      }
+    }
+  }
+}
+.clearfix {
+  overflow: hidden;
+}
+.fl {
+  float: left;
+}
+.fr {
+  float: right;
+}
+.footer {
+  text-align: center;
+  color: #999999;
+  font-size: 24rpx;
+} // 去顶部
+.to-top {
+  width: 90rpx;
+  height: 90rpx;
+  border-radius: 50%;
+  background-color: #ff2d4a;
+  text-align: center;
+  position: fixed;
+  bottom: 10rpx;
+  right: 10rpx;
+  font-size: 25rpx;
+  color: gray;
+  opacity: 0.5;
+  text {
+    display: block;
+  }
+}
+</style>
+
+<template>
+  <!-- 使用组件即可 -->
+  <searchBar></searchBar>
+  <!-- 轮播图 -->
+  <swiper indicator-dots autoplay circular>
+    <block wx:for="{{swiperData}}" wx:key="">
+      <swiper-item>
+        <navigator url="{{item.navigator_url}}" open-type="navigate" hover-class="none">
+          <image mode="aspectFill" src="{{item.image_src}}"></image>
+        </navigator>
+      </swiper-item>
+    </block>
+  </swiper>
+  <!-- 导航区域-->
+  <view class="nav">
+    <block wx:for="{{navData}}" wx:key="">
+      <navigator url="{{item.navigator_url}}" open-type="navigate" hover-class="none">
+        <image src="{{item.image_src}}">
+        </image>
+      </navigator>
+    </block>
+  </view>
+  <!-- 楼层区域-->
+  <view class="items">
+    <block wx:for="{{floorData}}" wx:key="">
+      <view class="item">
+        <image class="title" src="{{item.floor_title.image_src}}"></image>
+        <view class="product-box">
+          <block wx:for="{{item.product_list}}" wx:for-index="i" wx:for-item="product">
+            <navigator class="fl" url="{{product.navigator_url}}">
+              <image style="width:{{product.image_width}}rpx;" src="{{product.image_src}}"></image>
+            </navigator>
+          </block>
+        </view>
+      </view>
+    </block>
+  </view>
+  <!-- 底线 -->
+  <view class="footer">
+    <text class="iconfont icon-xiao"></text>
+    <text>我是有底线的</text>
+  </view>
+  <!-- 去顶部 -->
+  <view @tap="toTop" class="to-top" hidden="{{isHidden}}">
+    <text class="iconfont icon-jiantoushang"></text> 顶部
+  </view>
+</template>
+
+<script>
+import wepy from 'wepy'
+// 引入逐渐
+import searchBar from '../comments/searchBar'
+
+// 引入自己的模块
+// 必须使用 相对路径
+var method = require('../utils/method.js')
+
+export default class Index extends wepy.page {
+  config = {
+    navigationBarTitleText: '品优购'
+  }
+  //声明页面中将要使用到的组件
+  components = {
+    searchBar
+  }
+  // 增加数据对象
+  data = {
+    swiperData: '',
+    navData: '',
+    floorData: '',
+    isHidden: true
+  }
+  // 声明周期函数
+  onLoad() {
+    console.log('onLoad')
+    console.log(method)
+    // 加载完毕执行
+    // var that = this;
+    // 获取轮播图数据
+    method.request({
+      url: 'api/public/v1/home/swiperdata',
+      success: backData => {
+        this.swiperData = backData.data.message
+        // 异步必须要apply
+        this.$apply()
+      }
+    })
+    method.request({
+      url: 'api/public/v1/home/catitems',
+      success: backData => {
+        this.navData = backData.data.message
+        // 人为的调用
+        this.$apply()
+      }
+    })
+    method.request({
+      url: 'api/public/v1/home/floordata',
+      success: backData => {
+        this.floorData = backData.data.message
+        this.$apply()
+      }
+    })
+  }
+  // methods
+  methods = {
+    onPageScroll(event) {
+      console.log(event)
+      console.log('我滚动啦')
+      if (event.scrollTop > 100) {
+        this.isHidden = false
+      } else {
+        this.isHidden = true
+      }
+    },
+    // 去顶部
+    toTop() {
+      console.log('去顶部')
+      wx.pageScrollTo({
+        scrollTop: 0,
+        duration: 300
+      })
+    }
+  }
+}
+</script>
+
+
+<!--  -->
+<template>
+  <view class='container'>
+  </view>
+</template>
+
+
